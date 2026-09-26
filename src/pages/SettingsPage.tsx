@@ -11,7 +11,7 @@ import { SyncButton } from '../components/SyncButton'
 import { desktopRequest, isWindowsDesktop } from '../platform/desktopBridge'
 import { updateManifests } from '../platform/releaseConfig'
 
-const APP_VERSION = '1.1.0'
+const APP_VERSION = '1.1.1'
 const bytes = (value: number) => value < 1024 ? `${value} B` : value < 1048576 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1048576).toFixed(1)} MB`
 
 export function SettingsPage({ store }: { store: AppStore }) {

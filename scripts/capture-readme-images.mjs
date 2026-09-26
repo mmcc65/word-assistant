@@ -88,7 +88,7 @@ const fixture = {
     { id: 'wb-reading', name: '阅读积累', parentId: 'wb-main', favorite: false, createdAt: now, updatedAt: now },
     { id: 'wb-errors', name: '易错词', parentId: 'wb-main', favorite: false, createdAt: now, updatedAt: now },
   ],
-  wordbookItems: words.map((entry, index) => ({ id: `item-${index + 1}`, wordbookId: index === 0 ? 'wb-focus' : index % 3 === 0 ? 'wb-errors' : 'wb-reading', wordId: entry.id, createdAt: now, updatedAt: now })),
+  wordbookItems: words.map((entry, index) => ({ id: `item-${index + 1}`, wordbookId: index < 5 ? 'wb-focus' : index % 3 === 0 ? 'wb-errors' : 'wb-reading', wordId: entry.id, createdAt: now, updatedAt: now })),
   presets: [{ id: 'preset-cycling', name: '骑车模式', builtIn: true, senseScope: 'all', rules, updatedAt: now }],
   playbackPosition: { wordbookId: 'wb-main', wordIndex: 0, total: words.length, presetId: 'preset-cycling', updatedAt: now },
   audioCache: [],
@@ -179,10 +179,11 @@ try {
   await capture('home.png')
 
   await navigate('flashcards')
-  await evaluate(`(() => { const select = document.querySelector('.flashcard-toolbar select'); const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, 'wb-focus'); select.dispatchEvent(new Event('change', { bubbles: true })); return true })()`)
+  await evaluate(`(() => { const checks = [...document.querySelectorAll('.flashcard-check input')]; if (checks[2]?.checked) checks[2].click(); const select = document.querySelector('.flashcard-toolbar select'); const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, 'wb-focus'); select.dispatchEvent(new Event('change', { bubbles: true })); if (checks[1]?.checked) checks[1].click(); return true })()`)
   await wait(500)
   await evaluate("document.querySelector('.study-card')?.click(); true")
   await wait(350)
+  await evaluate("document.querySelector('.notice.error')?.remove(); true")
   await capture('flashcards.png')
 
   await navigate('wordbooks')
