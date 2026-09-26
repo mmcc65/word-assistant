@@ -10,6 +10,10 @@
 
 ## 界面预览
 
+### 本地优先首页
+
+![生词助手首页](docs/images/home.png)
+
 ### 结构化查询
 
 ![生词助手查询页](docs/images/search.png)
