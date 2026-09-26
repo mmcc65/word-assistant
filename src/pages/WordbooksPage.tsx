@@ -1,6 +1,7 @@
-import { ChevronRight, Folder, FolderPlus, Import, MoreHorizontal, MoveRight, Play, Search, Star, Trash2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Folder, FolderPlus, Import, MoreHorizontal, MoveRight, Play, Search, Star, Trash2 } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
 import { WordDetail } from '../components/WordDetail'
+import { paginate, visiblePageNumbers } from '../domain/pagination'
 import { ttsProvider } from '../providers/tts'
 import type { WordEntry } from '../domain/types'
 import type { AppStore } from '../state/useAppStore'
@@ -11,6 +12,8 @@ export function WordbooksPage({ store, initialId, navigate }: { store: AppStore;
   const [query, setQuery] = useState('')
   const [expandedWord, setExpandedWord] = useState<string | null>(null)
   const [playbackError, setPlaybackError] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const selected = data.wordbooks.find((book) => book.id === selectedId)
   const ids = useMemo(() => {
     const result = new Set([selectedId]); let changed = true
@@ -19,6 +22,11 @@ export function WordbooksPage({ store, initialId, navigate }: { store: AppStore;
   }, [data.wordbooks, selectedId])
   const wordIds = new Set(data.wordbookItems.filter((item) => ids.has(item.wordbookId)).map((item) => item.wordId))
   const words = data.words.filter((word) => wordIds.has(word.id) && (!query || word.word.includes(query.toLocaleLowerCase()) || word.meanings.some((group) => group.senses.some((sense) => sense.chinese.includes(query)))))
+  const pagination = paginate(words, page, pageSize)
+  const pageNumbers = visiblePageNumbers(pagination.currentPage, pagination.totalPages)
+  useEffect(() => { setPage(1); setExpandedWord(null) }, [selectedId, query, pageSize])
+  useEffect(() => { if (page !== pagination.currentPage) setPage(pagination.currentPage) }, [page, pagination.currentPage])
+  const goToPage = (nextPage: number) => { setPage(nextPage); setExpandedWord(null) }
   const count = (bookId: string) => data.wordbookItems.filter((item) => item.wordbookId === bookId).length
   const addFolder = () => { const name = window.prompt('新文件夹名称'); if (name?.trim()) store.createWordbook(name.trim(), selectedId || null) }
   const rename = () => { if (!selected) return; const name = window.prompt('重命名生词本', selected.name); if (name?.trim()) store.updateWordbook(selected.id, { name: name.trim() }) }
@@ -57,10 +65,20 @@ export function WordbooksPage({ store, initialId, navigate }: { store: AppStore;
           <div className="folder-header"><div><p className="breadcrumb">生词助手 <ChevronRight size={13} /> {selected.name}</p><h2>{selected.name}</h2><p>{words.length} 个单词（含子文件夹）</p></div><div className="action-row"><button className={selected.favorite ? 'icon-button active' : 'icon-button'} onClick={() => store.updateWordbook(selected.id, { favorite: !selected.favorite })} title="收藏整个文件夹"><Star size={18} fill={selected.favorite ? 'currentColor' : 'none'} /></button><button className="button secondary" onClick={() => navigate(`player:${selected.id}`)}><Play size={17} />播放</button><button className="icon-button" onClick={moveFolder} title="移动文件夹"><MoveRight size={18} /></button><button className="icon-button" onClick={rename} title="重命名"><MoreHorizontal size={19} /></button><button className="icon-button danger" onClick={remove} title="删除文件夹"><Trash2 size={18} /></button></div></div>
           {playbackError && <div className="notice error">{playbackError}</div>}
           <div className="list-search"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索当前文件夹" /></div>
-          <div className="word-list">{words.map((word) => <div className="word-row-wrap" key={word.id}>
+          <div className="word-list">{pagination.items.map((word) => <div className="word-row-wrap" key={word.id}>
             <div className="word-row"><button className={word.favorite ? 'sense-star active' : 'sense-star'} onClick={() => store.toggleWordFavorite(word.id)}><Star size={17} fill={word.favorite ? 'currentColor' : 'none'} /></button><button className="word-main" onClick={() => setExpandedWord(expandedWord === word.id ? null : word.id)}><b>{word.word}</b><span>{word.us.ipa || word.uk.ipa || '暂无音标'}</span></button><span className="pos">{word.meanings.map((group) => group.partOfSpeech).join(' / ') || '待补全'}</span><span className="meaning-summary">{word.meanings.flatMap((group) => group.senses).slice(0, 2).map((sense) => sense.chinese).join('；') || '等待词典补全'}</span><button className="icon-button" onClick={() => void playWord(word)} title="播放"><Play size={16} /></button><button className="icon-button" onClick={() => moveWord(word.id)} title="移动"><MoveRight size={16} /></button><button className="icon-button danger" onClick={() => store.removeWordFromBook(word.id, selected.id)} title="从当前生词本移除"><Trash2 size={16} /></button></div>
             {expandedWord === word.id && <WordDetail entry={word} onFavorite={() => store.toggleWordFavorite(word.id)} onSenseFavorite={(senseId) => store.toggleSenseFavorite(word.id, senseId)} onPlay={() => void playWord(word)} onSaveNote={(note) => store.saveNote(word.id, note)} />}
           </div>)}</div>
+          {words.length > 0 && <nav className="pagination" aria-label="生词本分页">
+            <div className="pagination-summary"><span>第 {pagination.currentPage} / {pagination.totalPages} 页</span><label>每页<select value={pageSize} onChange={(event) => setPageSize(Number(event.target.value))}><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></select>条</label></div>
+            <div className="pagination-buttons">
+              <button disabled={pagination.currentPage === 1} onClick={() => goToPage(1)} title="首页" aria-label="首页"><ChevronsLeft size={17} /></button>
+              <button disabled={pagination.currentPage === 1} onClick={() => goToPage(pagination.currentPage - 1)} title="上一页" aria-label="上一页"><ChevronLeft size={17} /></button>
+              {pageNumbers.map((pageNumber) => <button key={pageNumber} className={pageNumber === pagination.currentPage ? 'active' : ''} onClick={() => goToPage(pageNumber)} aria-current={pageNumber === pagination.currentPage ? 'page' : undefined}>{pageNumber}</button>)}
+              <button disabled={pagination.currentPage === pagination.totalPages} onClick={() => goToPage(pagination.currentPage + 1)} title="下一页" aria-label="下一页"><ChevronRight size={17} /></button>
+              <button disabled={pagination.currentPage === pagination.totalPages} onClick={() => goToPage(pagination.totalPages)} title="末页" aria-label="末页"><ChevronsRight size={17} /></button>
+            </div>
+          </nav>}
           {words.length === 0 && <div className="empty-state"><Folder size={38} /><h3>这里还没有单词</h3><p>从查询页添加，或一次导入一批。</p><button className="button primary" onClick={() => navigate('import')}>批量导入</button></div>}
         </> : <div className="empty-state">请选择一个文件夹</div>}
       </section>

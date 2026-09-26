@@ -10,7 +10,17 @@ export function migrateData(input: UnknownData): AppData {
   if (version < 1) value = migrateToV1(value)
   if ((value.schemaVersion ?? 0) < 2) value = migrateToV2(value)
   if ((value.schemaVersion ?? 0) < 3) value = migrateToV3(value)
+  if ((value.schemaVersion ?? 0) < 4) value = migrateToV4(value)
   return value as AppData
+}
+
+function migrateToV4(input: UnknownData): AppData {
+  return {
+    ...createEmptyData(),
+    ...input,
+    schemaVersion: 4,
+    flashcardProgress: input.flashcardProgress ?? [],
+  } as AppData
 }
 
 function migrateToV1(input: UnknownData): AppData {

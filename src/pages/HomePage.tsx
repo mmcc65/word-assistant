@@ -1,4 +1,4 @@
-import { BookOpen, Cloud, Import, Plus, Play, Star } from 'lucide-react'
+import { BookOpen, Cloud, Import, Layers3, Plus, Play, Star } from 'lucide-react'
 import type { AppStore } from '../state/useAppStore'
 import { SyncButton } from '../components/SyncButton'
 
@@ -25,6 +25,7 @@ export function HomePage({ store, navigate }: { store: AppStore; navigate: (page
         <div className="quick-grid">
           <button className="quick-card" onClick={() => navigate('search')}><Plus /><span>添加单词</span><small>查询后加入</small></button>
           <button className="quick-card warm" onClick={() => navigate('import')}><Import /><span>批量导入</span><small>粘贴 / TXT / CSV</small></button>
+          <button className="quick-card flashcard-quick" onClick={() => navigate('flashcards')}><Layers3 /><span>单词卡</span><small>翻卡与间隔复习</small></button>
           <div className="quick-card sync-card"><Cloud /><span>云端同步</span><SyncButton store={store} compact /></div>
         </div>
       </section>

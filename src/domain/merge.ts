@@ -90,6 +90,8 @@ export function mergeAppData(local: AppData, remote: AppData): AppData {
   const wordbookItems = mergeById(local.wordbookItems, remote.wordbookItems, (item) => item.id, (item) => item.updatedAt).filter((item) => !removed.has(`wordbookItem:${item.id}`))
   const presets = mergeById(local.presets, remote.presets, (item) => item.id, (item) => item.updatedAt).filter((item) => !removed.has(`preset:${item.id}`))
   const audioCache = mergeById(local.audioCache, remote.audioCache, (item) => item.id, (item) => item.updatedAt).filter((item) => !removed.has(`audioCache:${item.id}`))
+  const flashcardProgress = mergeById(local.flashcardProgress ?? [], remote.flashcardProgress ?? [], (item) => item.wordId, (item) => item.updatedAt)
+    .filter((item) => words.some((word) => word.id === item.wordId))
   const newer = Date.parse(local.updatedAt) >= Date.parse(remote.updatedAt) ? local : remote
   return {
     ...newer,
@@ -98,6 +100,7 @@ export function mergeAppData(local: AppData, remote: AppData): AppData {
     wordbookItems: dedupeRelations(wordbookItems),
     presets,
     audioCache,
+    flashcardProgress,
     tombstones,
     dirty: true,
     updatedAt: nowIso(),

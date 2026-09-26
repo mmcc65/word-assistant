@@ -1,7 +1,7 @@
 {
   "name": "word-assistant",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "本地优先、跨平台、可自定义连续播报的开源生词助手",
   "license": "MIT",
   "repository": {

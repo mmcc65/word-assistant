@@ -5,8 +5,9 @@ import { migrateData } from '../storage/migrations'
 describe('缓存与数据库迁移', () => {
   it('迁移旧快照并补齐 tombstone', () => {
     const migrated = migrateData({ schemaVersion: 1, words: [] })
-    expect(migrated.schemaVersion).toBe(3)
+    expect(migrated.schemaVersion).toBe(4)
     expect(migrated.tombstones).toEqual([])
+    expect(migrated.flashcardProgress).toEqual([])
     expect(migrated.wordbooks.length).toBeGreaterThan(0)
   })
 

@@ -1,10 +1,11 @@
-import { BookOpen, Home, Import, Menu, Play, Search, Settings, X } from 'lucide-react'
+import { BookOpen, Home, Import, Layers3, Menu, Play, Search, Settings, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { HomePage } from './pages/HomePage'
 import { ImportPage } from './pages/ImportPage'
 import { PlayerPage } from './pages/PlayerPage'
 import { SearchPage } from './pages/SearchPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { FlashcardsPage } from './pages/FlashcardsPage'
 import { WordbooksPage } from './pages/WordbooksPage'
 import { useAppStore } from './state/useAppStore'
 
@@ -13,6 +14,7 @@ const nav = [
   { id: 'wordbooks', label: '生词本', icon: BookOpen },
   { id: 'search', label: '查询', icon: Search },
   { id: 'player', label: '播放', icon: Play },
+  { id: 'flashcards', label: '单词卡', icon: Layers3 },
   { id: 'import', label: '导入', icon: Import, desktopOnly: true },
   { id: 'settings', label: '设置', icon: Settings },
 ]
@@ -43,6 +45,7 @@ export default function App() {
       {page === 'wordbooks' && <WordbooksPage key={param || 'all'} store={store} initialId={param} navigate={navigate} />}
       {page === 'search' && <SearchPage store={store} />}
       {page === 'player' && <PlayerPage key={param || 'default'} store={store} initialBookId={param} />}
+      {page === 'flashcards' && <FlashcardsPage store={store} />}
       {page === 'import' && <ImportPage store={store} />}
       {page === 'settings' && <SettingsPage store={store} />}
       {!nav.some((item) => item.id === page) && <HomePage store={store} navigate={navigate} />}

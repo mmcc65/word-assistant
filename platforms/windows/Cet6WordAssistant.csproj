@@ -9,7 +9,7 @@
     <ApplicationIcon>word.ico</ApplicationIcon>
     <AssemblyName>生词助手</AssemblyName>
     <RootNamespace>Cet6WordAssistant</RootNamespace>
-    <Version>1.0.2</Version>
+    <Version>1.1.0</Version>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4191.47" />

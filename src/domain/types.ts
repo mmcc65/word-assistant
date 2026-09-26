@@ -117,6 +117,19 @@ export interface AudioCacheRecord {
   updatedAt: string
 }
 
+export type FlashcardRating = 'again' | 'hard' | 'known'
+
+export interface FlashcardProgress {
+  wordId: Id
+  level: number
+  streak: number
+  reviewCount: number
+  lastRating: FlashcardRating
+  lastReviewedAt: string
+  nextReviewAt: string
+  updatedAt: string
+}
+
 export interface AppSettings {
   theme: 'system' | 'light' | 'dark'
   englishVoice: string
@@ -141,6 +154,7 @@ export interface AppData {
   presets: PlaybackPreset[]
   playbackPosition: PlaybackPosition
   audioCache: AudioCacheRecord[]
+  flashcardProgress: FlashcardProgress[]
   settings: AppSettings
   tombstones: Tombstone[]
   dirty: boolean

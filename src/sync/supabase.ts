@@ -1,6 +1,7 @@
 import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js'
 import { mergeAppData } from '../domain/merge'
 import type { AppData, SyncPayload } from '../domain/types'
+import { migrateData } from '../storage/migrations'
 
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
@@ -49,7 +50,7 @@ export async function syncData(local: AppData): Promise<AppData> {
   if (!user) throw new Error('请先登录后再同步。')
   const { data: row, error: readError } = await supabase.from('user_snapshots').select('payload').eq('user_id', user.id).maybeSingle()
   if (readError) throw readError
-  const remote = row?.payload ? (row.payload as SyncPayload).data : null
+  const remote = row?.payload ? migrateData((row.payload as SyncPayload).data) : null
   const merged = remote ? mergeAppData(local, remote) : local
   const payload: SyncPayload = { schemaVersion: merged.schemaVersion, data: merged, deviceId: deviceId(), updatedAt: new Date().toISOString() }
   const { error: writeError } = await supabase.from('user_snapshots').upsert({ user_id: user.id, payload, updated_at: payload.updatedAt }, { onConflict: 'user_id' })

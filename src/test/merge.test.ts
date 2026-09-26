@@ -32,4 +32,14 @@ describe('词条去重与安全合并', () => {
     expect(merged.words).toHaveLength(1)
     expect(merged.wordbookItems).toHaveLength(1)
   })
+
+  it('同步保留较新的单词卡复习记录', () => {
+    const local = createEmptyData()
+    const remote = createEmptyData()
+    local.flashcardProgress = [{ wordId: 'word-1', level: 1, streak: 1, reviewCount: 1, lastRating: 'known', lastReviewedAt: '2026-01-01T00:00:00.000Z', nextReviewAt: '2026-01-02T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }]
+    remote.flashcardProgress = [{ ...local.flashcardProgress[0], level: 3, reviewCount: 4, updatedAt: '2026-01-03T00:00:00.000Z' }]
+    local.words = [{ id: 'word-1' } as never]
+    remote.words = [{ id: 'word-1' } as never]
+    expect(mergeAppData(local, remote).flashcardProgress[0].level).toBe(3)
+  })
 })

@@ -1,6 +1,6 @@
 import type { AppData, PlaybackContentType, PlaybackPreset, PlaybackRule } from './types'
 
-export const CURRENT_SCHEMA_VERSION = 3
+export const CURRENT_SCHEMA_VERSION = 4
 
 export const nowIso = () => new Date().toISOString()
 export const newId = (prefix = 'id') => `${prefix}_${crypto.randomUUID()}`
@@ -73,6 +73,7 @@ export function createEmptyData(): AppData {
     presets: builtInPresets,
     playbackPosition: { wordbookId: readingId, wordIndex: 0, total: 0, presetId: 'preset-cycling', updatedAt: now },
     audioCache: [],
+    flashcardProgress: [],
     settings: {
       theme: 'system',
       englishVoice: '',
