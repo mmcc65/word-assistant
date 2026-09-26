@@ -1,0 +1,52 @@
+# 设备验证矩阵
+
+更新时间：2026-09-26
+
+标记说明：✅ 已在当前开发环境实际验证；🧪 代码/浏览器级验证；⬜ 需要目标真机或外部配置。
+
+## Windows PC
+
+| 项目 | 状态 | 说明 |
+|---|---:|---|
+| TypeScript 类型检查 | ✅ | `pnpm run check` 通过 |
+| 自动测试 | ✅ | 7 个文件、29 项测试通过 |
+| 生产构建 | ✅ | Vite + PWA 构建成功 |
+| Windows EXE 构建 | ✅ | WebView2 自包含发布及 ZIP 生成成功 |
+| Windows EXE 启动 | ✅ | Windows 端已实际启动并进行播放与设置测试 |
+| 生产 HTTP 冒烟 | ✅ | 本地预览返回应用 HTML、manifest、Service Worker |
+| Edge/Chrome PWA 手动安装 | ⬜ | 当前任务未操作图形浏览器 |
+| TTS 实际听感 | ✅ | 标准单词、拼写、短语、例句及中文内容已进行人工听测和多轮修正 |
+| 应用内更新 | ✅ | 0.1.1 已通过 HTTPS 清单、ZIP 下载和 SHA-256 校验升级至 1.0.2 |
+
+## Huawei Pura 70 Pro / HarmonyOS 4.2.0
+
+| 场景 | 状态 | 第一版结论 |
+|---|---:|---|
+| Android APK 工程 | ✅ | Capacitor 工程已生成 APK，并在目标手机完成侧载 |
+| 启动、响应式手机布局 | ✅ | 已在 Huawei Pura 70 Pro / HarmonyOS 4.2.0 真机启动 |
+| 查询、导入、本地保存 | 🧪 | 共享 Web 逻辑与自动测试通过 |
+| Supabase 同步 | ⬜ | 需项目凭据、网络和真机 |
+| 前台播放 | ✅ | 已真机听测，标准单词发音可用；新版修复已进入后续安装包 |
+| 熄屏/切应用后台播放 | ⬜ | PWA 不作保证；需 APK 原生媒体服务 |
+| 收藏离线音频 | 🧪 | 生命周期模型完成；真实音频二进制缓存未接 Neural TTS |
+| 检查更新 | 🧪 | Web 侧已预留原生更新桥接；Android 原生下载与安装确认仍待完成 |
+
+## Huawei MatePad 11.5S 灵动版 2024 / HarmonyOS 6.0
+
+| 场景 | 状态 | 第一版结论 |
+|---|---:|---|
+| HarmonyOS HAP 工程 | 🧪 | ArkTS/ArkWeb 工程和离线网页资源同步成功；缺 DevEco/签名，未产出 HAP |
+| 横屏/竖屏布局 | 🧪 | 宽屏双栏和窄屏底栏代码完成，未真机确认 |
+| 查询、导入、本地保存 | 🧪 | 共享 Web 逻辑与自动测试通过 |
+| Supabase 同步 | ⬜ | 需项目凭据、网络和真机 |
+| 前台播放 | 🧪 | 队列逻辑通过，未真机听测 |
+| 熄屏/切应用后台播放 | ⬜ | 需 ArkTS HAP、AVSessionKit 和长时任务 |
+| 收藏离线音频 | 🧪 | 生命周期模型完成；原生文件缓存桥接待实现 |
+| 检查更新 | 🧪 | PWA 更新完成；HAP 私人分发需签名/开发者账号 |
+
+## 未满足的外部条件
+
+- 当前 Windows 环境已具备 Android 构建工具；尚未安装 DevEco Studio 与 HarmonyOS SDK。
+- Huawei Pura 70 Pro 已完成 APK 侧载；HarmonyOS 6 平板仍待连接与签名验证。
+- 没有 HarmonyOS 开发者签名、Supabase 项目或商业词典/Neural TTS Key。
+- 因此不能声称 HAP/APK 安装、后台音频、系统播控中心、离线音频文件及原生应用内更新已经通过。

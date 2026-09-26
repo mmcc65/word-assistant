@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">生词助手</string>
+    <string name="title_activity_main">生词助手</string>
+    <string name="package_name">com.personal.cet6words</string>
+    <string name="custom_url_scheme">com.personal.cet6words</string>
+</resources>

@@ -1,0 +1,46 @@
+{
+  "name": "word-assistant",
+  "private": true,
+  "version": "1.0.2",
+  "description": "本地优先、跨平台、可自定义连续播报的开源生词助手",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mmcc65/word-assistant.git"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "desktop:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-windows.ps1",
+    "android:sync": "pnpm build && node node_modules/@capacitor/cli/bin/capacitor sync android",
+    "android:open": "node node_modules/@capacitor/cli/bin/capacitor open android",
+    "harmony:sync": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/sync-harmony.ps1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@capacitor/core": "8.5.2",
+    "@supabase/supabase-js": "2.57.4",
+    "lucide-react": "0.544.0",
+    "papaparse": "5.5.3",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "workbox-window": "7.4.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/cli": "8.5.2",
+    "@types/papaparse": "5.3.16",
+    "@types/react": "19.1.16",
+    "@types/react-dom": "19.1.9",
+    "@vitejs/plugin-react": "5.0.4",
+    "jsdom": "27.0.0",
+    "typescript": "5.9.2",
+    "vite": "7.1.7",
+    "vite-plugin-pwa": "1.0.3",
+    "vitest": "3.2.4"
+  }
+}
