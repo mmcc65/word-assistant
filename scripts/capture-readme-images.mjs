@@ -7,6 +7,9 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const output = join(root, 'docs', 'images')
+const playerOnly = process.argv.includes('--player-only')
+const viewportWidth = playerOnly ? 1600 : 1800
+const viewportHeight = playerOnly ? 900 : 1200
 const siteUrl = 'http://127.0.0.1:4173'
 const debugPort = 9333
 const chromeCandidates = [
@@ -147,20 +150,22 @@ let chrome
 let cdp
 try {
   await waitForUrl(siteUrl)
-  chrome = spawn(chromePath, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--disable-extensions', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, '--window-size=1800,1200', 'about:blank'], { stdio: 'ignore' })
+  chrome = spawn(chromePath, ['--headless=new', '--disable-gpu', '--hide-scrollbars', '--no-first-run', '--disable-extensions', `--remote-debugging-port=${debugPort}`, `--user-data-dir=${profile}`, `--window-size=${viewportWidth},${viewportHeight}`, 'about:blank'], { stdio: 'ignore' })
   await waitForUrl(`http://127.0.0.1:${debugPort}/json/version`)
-  const targetResponse = await fetch(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(siteUrl)}`, { method: 'PUT' })
+  // Start on a static file so the app cannot write its empty initial state over
+  // the screenshot fixture before it is seeded.
+  const targetResponse = await fetch(`http://127.0.0.1:${debugPort}/json/new?${encodeURIComponent(`${siteUrl}/manifest.webmanifest`)}`, { method: 'PUT' })
   const target = await targetResponse.json()
   cdp = new CdpClient(target.webSocketDebuggerUrl)
   await cdp.open()
   await cdp.send('Page.enable')
   await cdp.send('Runtime.enable')
-  await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1800, height: 1200, deviceScaleFactor: 1, mobile: false })
+  await cdp.send('Emulation.setDeviceMetricsOverride', { width: viewportWidth, height: viewportHeight, deviceScaleFactor: 1, mobile: false })
   await wait(1200)
 
-  const seedExpression = `new Promise((resolve, reject) => { const request = indexedDB.open('cet6-word-assistant', 1); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('app-state')) request.result.createObjectStore('app-state') }; request.onerror = () => reject(request.error); request.onsuccess = () => { const db = request.result; const transaction = db.transaction('app-state', 'readwrite'); transaction.objectStore('app-state').put(${JSON.stringify(fixture)}, 'current'); transaction.oncomplete = () => { db.close(); resolve(true) }; transaction.onerror = () => reject(transaction.error) } })`
+  const seedExpression = `new Promise((resolve, reject) => { const request = indexedDB.open('cet6-word-assistant', 2); request.onupgradeneeded = () => { if (!request.result.objectStoreNames.contains('app-state')) request.result.createObjectStore('app-state'); if (!request.result.objectStoreNames.contains('offline-audio')) { const audio = request.result.createObjectStore('offline-audio', { keyPath: 'url' }); audio.createIndex('wordbookIds', 'wordbookIds', { multiEntry: true }) } }; request.onerror = () => reject(request.error); request.onsuccess = () => { const db = request.result; const transaction = db.transaction('app-state', 'readwrite'); transaction.objectStore('app-state').put(${JSON.stringify(fixture)}, 'current'); transaction.oncomplete = () => { db.close(); resolve(true) }; transaction.onerror = () => reject(transaction.error) } })`
   await cdp.send('Runtime.evaluate', { expression: seedExpression, awaitPromise: true, returnByValue: true })
-  await cdp.send('Page.reload', { ignoreCache: true })
+  await cdp.send('Page.navigate', { url: siteUrl })
   await wait(1200)
 
   const evaluate = (expression) => cdp.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true })
@@ -175,26 +180,28 @@ try {
     await writeFile(join(output, name), Buffer.from(result.data, 'base64'))
   }
 
-  await navigate('home')
-  await capture('home.png')
+  if (!playerOnly) {
+    await navigate('home')
+    await capture('home.png')
 
-  await navigate('flashcards')
-  await evaluate(`(() => { const checks = [...document.querySelectorAll('.flashcard-check input')]; if (checks[2]?.checked) checks[2].click(); const select = document.querySelector('.flashcard-toolbar select'); const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, 'wb-focus'); select.dispatchEvent(new Event('change', { bubbles: true })); if (checks[1]?.checked) checks[1].click(); return true })()`)
-  await wait(500)
-  await evaluate("document.querySelector('.study-card')?.click(); true")
-  await wait(350)
-  await evaluate("document.querySelector('.notice.error')?.remove(); true")
-  await capture('flashcards.png')
+    await navigate('flashcards')
+    await evaluate(`(() => { const checks = [...document.querySelectorAll('.flashcard-check input')]; if (checks[2]?.checked) checks[2].click(); const select = document.querySelector('.flashcard-toolbar select'); const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set; setter.call(select, 'wb-focus'); select.dispatchEvent(new Event('change', { bubbles: true })); if (checks[1]?.checked) checks[1].click(); return true })()`)
+    await wait(500)
+    await evaluate("document.querySelector('.study-card')?.click(); true")
+    await wait(350)
+    await evaluate("document.querySelector('.notice.error')?.remove(); true")
+    await capture('flashcards.png')
 
-  await navigate('wordbooks')
-  await evaluate("window.scrollTo(0, document.documentElement.scrollHeight); true")
-  await wait(500)
-  await capture('wordbooks.png')
+    await navigate('wordbooks')
+    await evaluate("window.scrollTo(0, document.documentElement.scrollHeight); true")
+    await wait(500)
+    await capture('wordbooks.png')
 
-  await navigate('search')
-  await evaluate(`(() => { const input = document.querySelector('.search-form input'); const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setter.call(input, 'issue'); input.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('.search-form button')?.click(); return true })()`)
-  await wait(1300)
-  await capture('search.png')
+    await navigate('search')
+    await evaluate(`(() => { const input = document.querySelector('.search-form input'); const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; setter.call(input, 'issue'); input.dispatchEvent(new Event('input', { bubbles: true })); document.querySelector('.search-form button')?.click(); return true })()`)
+    await wait(1300)
+    await capture('search.png')
+  }
 
   await navigate('player')
   await capture('player.png')
