@@ -86,6 +86,7 @@ export interface PlaybackRule {
   enabled: boolean
   repeats: number
   rate: number
+  volume?: number
   gapSeconds: number
 }
 
@@ -102,9 +103,12 @@ export interface PlaybackPreset {
 
 export interface PlaybackPosition {
   wordbookId: Id | null
+  wordId?: Id
   wordIndex: number
   total: number
   presetId: Id
+  randomOrder?: boolean
+  wordOrder?: Id[]
   updatedAt: string
 }
 
@@ -168,6 +172,7 @@ export interface QueueItem {
   text: string
   lang: Accent
   rate: number
+  volume: number
   gapSeconds: number
   repetition: number
 }

@@ -1,5 +1,5 @@
 import { Check, FileText, Import, LoaderCircle, Upload, X, AlertTriangle } from 'lucide-react'
-import { ChangeEvent, useMemo, useState } from 'react'
+import { ChangeEvent, useEffect, useMemo, useState } from 'react'
 import { buildImportPreview, importRowToEntry, parseCsv, parsePlainText } from '../domain/importer'
 import { mergeWordEntries } from '../domain/merge'
 import type { ImportPreviewRow } from '../domain/types'
@@ -22,6 +22,7 @@ export function ImportPage({ store }: { store: AppStore }) {
   const [progress, setProgress] = useState<{ current: number; total: number } | null>(null)
   const [failures, setFailures] = useState<Array<{ word: string; reason: string }>>([])
   const [done, setDone] = useState('')
+  const nativeFilePicker = Boolean(window.WordAssistantAndroid?.pickTextFile)
   const stats = useMemo(() => ({
     total: preview.length,
     ready: preview.filter((row) => row.status === 'ready').length,
@@ -39,6 +40,15 @@ export function ImportPage({ store }: { store: AppStore }) {
     const content = await file.text()
     setText(content); setSourceName(file.name); setPreview([]); setDone('')
   }
+  useEffect(() => {
+    const receiveFile = (event: Event) => {
+      const detail = (event as CustomEvent<{ name: string; text: string }>).detail
+      if (!detail?.name || typeof detail.text !== 'string') return
+      setText(detail.text); setSourceName(detail.name); setPreview([]); setDone('')
+    }
+    window.addEventListener('wordAssistantFilePicked', receiveFile)
+    return () => window.removeEventListener('wordAssistantFilePicked', receiveFile)
+  }, [])
   const runImport = async () => {
     const selected = preview.filter((row) => row.status === 'ready' || (!skipDuplicates && row.status === 'existing'))
     setProgress({ current: 0, total: selected.length }); setFailures([]); setDone('')
@@ -66,7 +76,7 @@ export function ImportPage({ store }: { store: AppStore }) {
   return <div className="page narrow-page">
     <div className="page-title"><div><p className="eyebrow">先预览，再写入</p><h1>批量导入</h1><p>自动清理、去重并补全只有单词的条目。</p></div></div>
     <div className="import-card card">
-      <div className="import-tabs"><button className="active"><Import size={17} />粘贴单词</button><label><Upload size={17} />TXT / CSV<input type="file" accept=".txt,.csv,text/plain,text/csv" onChange={(event) => void readFile(event)} /></label></div>
+      <div className="import-tabs"><button className="active"><Import size={17} />粘贴单词</button>{nativeFilePicker ? <button type="button" onClick={() => window.WordAssistantAndroid?.pickTextFile()}><Upload size={17} />从设备选择 TXT / CSV</button> : <label><Upload size={17} />TXT / CSV<input type="file" accept=".txt,.csv,text/plain,text/csv" onChange={(event) => void readFile(event)} /></label>}</div>
       <div className="source-label"><FileText size={16} />{sourceName}</div>
       <textarea className="import-textarea" value={text} onChange={(event) => { setText(event.target.value); setSourceName('直接粘贴'); setPreview([]) }} placeholder="每行一个单词，或选择 TXT / CSV 文件" />
       <div className="import-actions"><label>目标生词本<select value={bookId} onChange={(event) => setBookId(event.target.value)}>{data.wordbooks.map((book) => <option key={book.id} value={book.id}>{book.name}</option>)}</select></label><button className="button primary" onClick={analyze} disabled={!text.trim()}>生成导入预览</button></div>

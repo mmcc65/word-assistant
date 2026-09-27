@@ -15,7 +15,7 @@ const nav = [
   { id: 'search', label: '查询', icon: Search },
   { id: 'player', label: '播放', icon: Play },
   { id: 'flashcards', label: '单词卡', icon: Layers3 },
-  { id: 'import', label: '导入', icon: Import, desktopOnly: true },
+  { id: 'import', label: '导入', icon: Import },
   { id: 'settings', label: '设置', icon: Settings },
 ]
 
@@ -36,7 +36,7 @@ export default function App() {
     <header className="mobile-header"><button className="icon-button" onClick={() => setSidebarOpen(true)}><Menu /></button><div className="mobile-brand"><span>词</span>生词助手</div></header>
     <aside className={sidebarOpen ? 'sidebar open' : 'sidebar'}>
       <div className="brand"><span className="brand-mark">词</span><div><b>生词助手</b><small>多场景 · 私人生词库</small></div><button className="close-sidebar" onClick={() => setSidebarOpen(false)}><X /></button></div>
-      <nav>{nav.map((item) => { const Icon = item.icon; return <button key={item.id} className={`${page === item.id ? 'active' : ''} ${item.desktopOnly ? 'desktop-only-nav' : ''}`} onClick={() => navigate(item.id)}><Icon size={20} /><span>{item.label}</span></button> })}</nav>
+      <nav>{nav.map((item) => { const Icon = item.icon; return <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => navigate(item.id)}><Icon size={20} /><span>{item.label}</span></button> })}</nav>
       <div className="sidebar-status"><i /><div><b>本地优先</b><small>{store.data.dirty ? '有修改待同步' : '数据已安全保存'}</small></div></div>
     </aside>
     {sidebarOpen && <button className="backdrop" onClick={() => setSidebarOpen(false)} aria-label="关闭导航" />}
@@ -50,6 +50,6 @@ export default function App() {
       {page === 'settings' && <SettingsPage store={store} />}
       {!nav.some((item) => item.id === page) && <HomePage store={store} navigate={navigate} />}
     </main>
-    <nav className="bottom-nav">{nav.filter((item) => !item.desktopOnly).map((item) => { const Icon = item.icon; return <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => navigate(item.id)}><Icon size={20} /><span>{item.label}</span></button> })}</nav>
+    <nav className="bottom-nav">{nav.filter((item) => item.id !== 'import').map((item) => { const Icon = item.icon; return <button key={item.id} className={page === item.id ? 'active' : ''} onClick={() => navigate(item.id)}><Icon size={20} /><span>{item.label}</span></button> })}</nav>
   </div>
 }

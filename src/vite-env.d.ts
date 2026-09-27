@@ -12,6 +12,10 @@ interface Window {
   WordAssistantAndroid?: {
     checkForUpdate: (manifestUrls: string, userInitiated: boolean) => void
     getAppVersion: () => string
+    startBackgroundPlayback: () => void
+    stopBackgroundPlayback: () => void
+    pickTextFile: () => void
+    downloadAudio: (url: string, requestId: string) => void
   }
 }
 /// <reference types="vite-plugin-pwa/client" />

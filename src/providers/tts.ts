@@ -1,10 +1,16 @@
 import type { Accent } from '../domain/types'
 import { desktopRequest, isWindowsDesktop } from '../platform/desktopBridge'
+import { findOfflineAudio } from '../storage/offlineAudio'
 
 export interface SpeakOptions {
   lang: Accent
   rate: number
+  volume?: number
   voiceName?: string
+}
+
+function outputVolume(value?: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(2, value)) : 1
 }
 
 export interface TtsProvider {
@@ -129,12 +135,24 @@ export class WebSpeechTtsProvider implements TtsProvider {
     const fallbackPassageAudio = options.lang === 'en-US' || options.lang === 'en-GB'
       ? fallbackEnglishPassageAudioUrl(text)
       : null
+    if (dictionaryAudio || passageAudio) {
+      const standardRateAudio = englishPassageAudioUrl(text, 1)
+      for (const url of [dictionaryAudio, passageAudio, standardRateAudio, fallbackPassageAudio]) {
+        if (!url) continue
+        try {
+          if (await findOfflineAudio(url)) {
+            await this.playAudio(url, url === passageAudio ? 1 : options.rate, outputVolume(options.volume), 1, operation)
+            return
+          }
+        } catch { /* continue with online source */ }
+      }
+    }
     if (!dictionaryAudio && passageAudio && isWindowsDesktop) {
       try {
         const response = await desktopRequest('fetchEnglishAudio', { text, rate: options.rate })
         if (operation !== this.operation) return
         if (response.audioDataUrl) {
-          await this.playAudio(response.audioDataUrl, 1)
+          await this.playAudio(response.audioDataUrl, 1, outputVolume(options.volume), 1, operation)
           return
         }
       } catch { /* Windows 原生代理不可用时继续尝试系统英文声音 */ }
@@ -149,7 +167,7 @@ export class WebSpeechTtsProvider implements TtsProvider {
       if (operation !== this.operation) return
       if (typeof Audio === 'undefined') break
       try {
-        await this.playAudio(candidate, candidate === passageAudio ? 1 : options.rate)
+        await this.playAudio(candidate, candidate === passageAudio ? 1 : options.rate, outputVolume(options.volume), 1, operation)
         return
       } catch { /* 当前音频源不可用时尝试下一个标准发音源 */ }
     }
@@ -165,29 +183,35 @@ export class WebSpeechTtsProvider implements TtsProvider {
     if (!letters.length || (options.lang !== 'en-US' && options.lang !== 'en-GB')) {
       throw new Error('没有可播报的英文字母。')
     }
-    if (!globalThis.speechSynthesis) throw new Error('当前系统不支持逐字母发音。')
     const operation = ++this.operation
     this.cancelCurrentPlayback()
     for (const letter of letters) {
       if (operation !== this.operation) return
       let recordedLetterPlayed = false
       try {
-        if (isWindowsDesktop) {
+        const recordedUrl = fallbackEnglishPassageAudioUrl(letter)
+        if (recordedUrl && await findOfflineAudio(recordedUrl).catch(() => null)) {
+          await this.playAudio(recordedUrl, options.rate, outputVolume(options.volume), 1.6, operation)
+          recordedLetterPlayed = true
+        }
+        if (!recordedLetterPlayed && isWindowsDesktop) {
           const response = await desktopRequest('fetchEnglishAudio', { text: letter, rate: options.rate, spelling: true })
           if (operation !== this.operation) return
           if (response.audioDataUrl) {
-            await this.playAudio(response.audioDataUrl, options.rate, 1.6)
+            await this.playAudio(response.audioDataUrl, options.rate, outputVolume(options.volume), 1.6, operation)
             recordedLetterPlayed = true
           }
-        } else {
-          const url = fallbackEnglishPassageAudioUrl(letter)
-          if (url && typeof Audio !== 'undefined') {
-            await this.playAudio(url, options.rate)
+        } else if (!recordedLetterPlayed) {
+          if (recordedUrl && typeof Audio !== 'undefined') {
+            await this.playAudio(recordedUrl, options.rate, outputVolume(options.volume), 1, operation)
             recordedLetterPlayed = true
           }
         }
       } catch { /* 标准字母录音不可用时回退到系统英文声音 */ }
-      if (!recordedLetterPlayed) await this.speakSystemUtterance(letter, options)
+      if (!recordedLetterPlayed) {
+        if (!globalThis.speechSynthesis) throw new Error('当前系统不支持逐字母发音。')
+        await this.speakSystemUtterance(letter, options)
+      }
       if (operation !== this.operation) return
       await new Promise((resolve) => setTimeout(resolve, 90))
     }
@@ -204,31 +228,63 @@ export class WebSpeechTtsProvider implements TtsProvider {
       utterance.lang = options.lang
       utterance.rate = options.rate
       utterance.pitch = 1
-      utterance.volume = 1
+      // SpeechSynthesisUtterance cannot amplify above 1; recorded audio uses Web Audio below.
+      utterance.volume = Math.min(1, outputVolume(options.volume))
       utterance.voice = selectVoice(this.voices(), options)
       utterance.onend = () => resolve()
       utterance.onerror = (event) => reject(new Error(event.error === 'canceled' ? '播放已停止' : `语音播放失败：${event.error}`))
       globalThis.speechSynthesis.speak(utterance)
     })
   }
-  private playAudio(url: string, rate: number, gain = 1): Promise<void> {
+  private async playAudio(url: string, rate: number, volume = 1, gain = 1, operation = this.operation): Promise<void> {
+    let playbackUrl = url
+    let revokePlaybackUrl = false
+    if (/^https:\/\//i.test(url)) {
+      try {
+        const cached = await findOfflineAudio(url)
+        if (cached) {
+          playbackUrl = URL.createObjectURL(cached)
+          revokePlaybackUrl = true
+        }
+      } catch { /* 本地存储不可用时仍使用在线音频 */ }
+    }
+    // Amplification needs same-origin bytes; routing a cross-origin media element through
+    // Web Audio can produce silence when the source doesn't allow CORS.
+    if (volume > 1 && /^https:\/\//i.test(playbackUrl)) {
+      try {
+        if (isWindowsDesktop) {
+          const response = await desktopRequest('fetchEnglishAudioUrl', { url })
+          if (response.audioDataUrl) playbackUrl = response.audioDataUrl
+        } else {
+          const response = await fetch(url)
+          if (response.ok) {
+            playbackUrl = URL.createObjectURL(await response.blob())
+            revokePlaybackUrl = true
+          }
+        }
+      } catch { /* 无法读取录音时继续以原响度播放，避免静音 */ }
+    }
+    if (operation !== this.operation) {
+      if (revokePlaybackUrl) URL.revokeObjectURL(playbackUrl)
+      return
+    }
     return new Promise((resolve, reject) => {
-      const audio = new Audio(url)
+      const audio = new Audio(playbackUrl)
       audio.preload = 'auto'
       audio.playbackRate = Math.max(.5, Math.min(2, rate))
       audio.preservesPitch = true
-      audio.volume = 1
+      audio.volume = Math.min(1, outputVolume(volume))
       let sourceNode: MediaElementAudioSourceNode | null = null
       let gainNode: GainNode | null = null
       let compressorNode: DynamicsCompressorNode | null = null
-      if (gain > 1 && url.startsWith('data:') && typeof AudioContext !== 'undefined') {
+      if (gain * volume > 1 && (playbackUrl.startsWith('data:') || revokePlaybackUrl) && typeof AudioContext !== 'undefined') {
         try {
           this.audioContext ??= new AudioContext()
           void this.audioContext.resume()
           sourceNode = this.audioContext.createMediaElementSource(audio)
           gainNode = this.audioContext.createGain()
           compressorNode = this.audioContext.createDynamicsCompressor()
-          gainNode.gain.value = gain
+          gainNode.gain.value = gain * volume
           compressorNode.threshold.value = -10
           compressorNode.knee.value = 12
           compressorNode.ratio.value = 4
@@ -248,6 +304,7 @@ export class WebSpeechTtsProvider implements TtsProvider {
         sourceNode?.disconnect()
         gainNode?.disconnect()
         compressorNode?.disconnect()
+        if (revokePlaybackUrl) URL.revokeObjectURL(playbackUrl)
         if (this.activeAudio?.element === audio) this.activeAudio = null
         if (error) reject(error); else resolve()
       }

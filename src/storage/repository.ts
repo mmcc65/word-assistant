@@ -9,9 +9,13 @@ const MEMORY_KEY = 'cet6-word-assistant-fallback'
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1)
+    const request = indexedDB.open(DB_NAME, 2)
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME)
+      if (!request.result.objectStoreNames.contains('offline-audio')) {
+        const audioStore = request.result.createObjectStore('offline-audio', { keyPath: 'url' })
+        audioStore.createIndex('wordbookIds', 'wordbookIds', { multiEntry: true })
+      }
     }
     request.onsuccess = () => resolve(request.result)
     request.onerror = () => reject(request.error)

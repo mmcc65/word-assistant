@@ -17,6 +17,7 @@ backups/
 platforms/windows/bin/
 platforms/windows/obj/
 platforms/harmony/entry/src/main/resources/rawfile/web/
+platforms/harmony/.hvigor/
 android/.gradle/
 android/app/build/
 *.jks

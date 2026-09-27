@@ -5,6 +5,23 @@ export function resolvePlaybackWordbookId(data: AppData, requestedId?: string | 
   return candidates.find((candidate): candidate is string => Boolean(candidate && data.wordbooks.some((book) => book.id === candidate))) ?? ''
 }
 
+export function resolvePlaybackQueueIndex(wordIds: string[], queue: QueueItem[], wordIndex: number, savedWordId?: string): number {
+  const targetWordId = savedWordId && wordIds.includes(savedWordId)
+    ? savedWordId
+    : wordIds[Math.max(0, Math.min(wordIds.length - 1, wordIndex))]
+  const targetIndex = wordIds.indexOf(targetWordId)
+  for (let index = Math.max(0, targetIndex); index < wordIds.length; index += 1) {
+    const queueIndex = queue.findIndex((item) => item.wordId === wordIds[index])
+    if (queueIndex >= 0) return queueIndex
+  }
+  return 0
+}
+
+export function playbackVolume(value?: number): number {
+  // Stored as a percentage of the original output: 100 = the old volume = 50% on the control.
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(200, value)) : 100
+}
+
 function repeatItems(
   word: WordEntry,
   type: QueueItem['type'],
@@ -22,6 +39,7 @@ function repeatItems(
       text,
       lang,
       rate: rule.rate,
+      volume: playbackVolume(rule.volume),
       gapSeconds: rule.gapSeconds,
       repetition: repetition + 1,
     })),

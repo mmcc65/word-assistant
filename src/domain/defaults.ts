@@ -9,6 +9,7 @@ const rule = (enabled: boolean, repeats: number, rate: number, gapSeconds: numbe
   enabled,
   repeats,
   rate,
+  volume: 100,
   gapSeconds,
 })
 
@@ -71,7 +72,7 @@ export function createEmptyData(): AppData {
     ],
     wordbookItems: [],
     presets: builtInPresets,
-    playbackPosition: { wordbookId: readingId, wordIndex: 0, total: 0, presetId: 'preset-cycling', updatedAt: now },
+    playbackPosition: { wordbookId: readingId, wordIndex: 0, total: 0, presetId: 'preset-cycling', randomOrder: false, wordOrder: [], updatedAt: now },
     audioCache: [],
     flashcardProgress: [],
     settings: {

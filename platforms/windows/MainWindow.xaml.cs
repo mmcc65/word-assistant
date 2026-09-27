@@ -151,6 +151,25 @@ public partial class MainWindow : Window
                 return;
             }
 
+            if (action == "fetchEnglishAudioUrl")
+            {
+                var address = root.TryGetProperty("url", out var urlElement) ? urlElement.GetString() : null;
+                if (!Uri.TryCreate(address, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps ||
+                    !(uri.Host.Equals("dict.youdao.com", StringComparison.OrdinalIgnoreCase) ||
+                      uri.Host.Equals("fanyi.baidu.com", StringComparison.OrdinalIgnoreCase) ||
+                      uri.Host.Equals("translate.google.com", StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidDataException("离线语音地址无效。");
+                using var response = await AudioClient.GetAsync(uri);
+                if (!response.IsSuccessStatusCode) throw new InvalidDataException("音频服务未返回可用录音。");
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var mediaType = response.Content.Headers.ContentType?.MediaType ?? "";
+                if (bytes.Length < 256 || bytes.Length > 1_000_000 ||
+                    !mediaType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidDataException("音频服务未返回可用录音。");
+                Reply(id, new { audioDataUrl = $"data:{mediaType};base64,{Convert.ToBase64String(bytes)}" });
+                return;
+            }
+
             if (action == "fetchEnglishAudio")
             {
                 var text = root.TryGetProperty("text", out var textElement) ? textElement.GetString()?.Trim() : null;
@@ -242,6 +261,9 @@ public partial class MainWindow : Window
 
     private static string FindPortableDataDirectory()
     {
+        if (File.Exists(Path.Combine(AppContext.BaseDirectory, "preview-isolated-data.marker")))
+            return Path.Combine(AppContext.BaseDirectory, "app-data");
+
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory != null)
         {
