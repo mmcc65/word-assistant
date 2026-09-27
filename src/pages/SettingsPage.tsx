@@ -11,7 +11,7 @@ import { SyncButton } from '../components/SyncButton'
 import { desktopRequest, isWindowsDesktop } from '../platform/desktopBridge'
 import { updateManifests } from '../platform/releaseConfig'
 
-const APP_VERSION = '1.1.1'
+const APP_VERSION = '1.1.2'
 const bytes = (value: number) => value < 1024 ? `${value} B` : value < 1048576 ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1048576).toFixed(1)} MB`
 
 export function SettingsPage({ store }: { store: AppStore }) {
@@ -104,7 +104,7 @@ export function SettingsPage({ store }: { store: AppStore }) {
         <label className="field">英文声音<select value={data.settings.englishVoice} onChange={(event) => setSetting('englishVoice', event.target.value)}><option value="">自动选择当前口音的最佳声音</option>{matchingEnglishVoices.map((voice) => <option value={voice.name} key={voice.name}>{voice.name} · {voice.lang}</option>)}</select></label>
         <label className="field">中文声音<select value={data.settings.chineseVoice} onChange={(event) => setSetting('chineseVoice', event.target.value)}><option value="">跟随系统</option>{chineseVoices.map((voice) => <option value={voice.name} key={voice.name}>{voice.name} · {voice.lang}</option>)}</select></label>
         <div className="action-row"><button className="button secondary" onClick={() => void ttsProvider.speakWord('significant', { lang: data.settings.englishAccent, rate: 1, voiceName: data.settings.englishVoice }).catch((reason) => setAuthMessage(reason instanceof Error ? reason.message : '标准发音播放失败'))}>试听标准单词发音</button><button className="button secondary" onClick={() => void ttsProvider.speak('这是中文语音试听。', { lang: 'zh-CN', rate: 1, voiceName: data.settings.chineseVoice })}>试听中文</button></div>
-        <p className="hint">单词使用词典标准英式/美式录音；拼写、短语和例句使用百度完整英文语音，只发送正在播放的英文文本。网络音频不可用时才回退到这里选择的系统英文声音。</p>
+        <p className="hint">单词使用词典标准英式/美式录音；拼写使用这里选择的系统英文声音逐字母播放；短语和例句使用完整英文语音。</p>
       </section>
       <section className="settings-section card">
         <div className="settings-title"><HardDrive /><div><h2>存储与空间</h2><p>取消收藏只清理音频，不删除文字词条</p></div></div>

@@ -59,14 +59,13 @@ export function pronunciationAudioUrl(text: string, accent: 'en-US' | 'en-GB'): 
 }
 
 export function passageSpeechSpeed(rate: number): number {
+  if (rate <= .5) return 1
   if (rate <= .6) return 2
   if (rate <= .7) return 3
   if (rate <= .85) return 4
   if (rate <= 1) return 5
   if (rate <= 1.1) return 6
-  if (rate <= 1.25) return 7
-  if (rate <= 1.5) return 8
-  return 9
+  return 7
 }
 
 export function englishPassageAudioUrl(text: string, rate = 1): string | null {
@@ -75,13 +74,26 @@ export function englishPassageAudioUrl(text: string, rate = 1): string | null {
   return `https://fanyi.baidu.com/gettts?lan=en&text=${encodeURIComponent(value)}&spd=${passageSpeechSpeed(rate)}&source=web`
 }
 
+export function fallbackEnglishPassageAudioUrl(text: string): string | null {
+  const value = text.trim()
+  if (value.length > 200 || !/\p{Script=Latin}/u.test(value) || /[\u0000-\u001f\u007f]/u.test(value)) return null
+  return `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q=${encodeURIComponent(value)}`
+}
+
 export function spellingLetters(text: string): string[] {
   return [...text].filter((value) => /[a-z]/i.test(value))
+}
+
+export function spellingSpeechText(text: string): string {
+  return spellingLetters(text)
+    .map((letter) => letter.toLocaleUpperCase('en-US'))
+    .join(', ')
 }
 
 export class WebSpeechTtsProvider implements TtsProvider {
   readonly name = '词典标准发音 + 系统语音'
   private activeAudio: { element: HTMLAudioElement; finish: () => void } | null = null
+  private audioContext: AudioContext | null = null
   private operation = 0
   voices() { return globalThis.speechSynthesis?.getVoices?.() ?? [] }
   pause() {
@@ -114,6 +126,9 @@ export class WebSpeechTtsProvider implements TtsProvider {
     const passageAudio = options.lang === 'en-US' || options.lang === 'en-GB'
       ? englishPassageAudioUrl(text, options.rate)
       : null
+    const fallbackPassageAudio = options.lang === 'en-US' || options.lang === 'en-GB'
+      ? fallbackEnglishPassageAudioUrl(text)
+      : null
     if (!dictionaryAudio && passageAudio && isWindowsDesktop) {
       try {
         const response = await desktopRequest('fetchEnglishAudio', { text, rate: options.rate })
@@ -128,6 +143,7 @@ export class WebSpeechTtsProvider implements TtsProvider {
       dictionaryAudio,
       normalizeAudioUrl(audioUrl ?? ''),
       isWindowsDesktop ? null : passageAudio,
+      fallbackPassageAudio,
     ].filter((url): url is string => Boolean(url)))]
     for (const candidate of candidates) {
       if (operation !== this.operation) return
@@ -145,29 +161,44 @@ export class WebSpeechTtsProvider implements TtsProvider {
     throw new Error('标准英文发音加载失败，请检查网络后重试。为避免怪异语调，未使用旧式系统合成音。')
   }
   async speakSpelling(text: string, options: SpeakOptions): Promise<void> {
-    const letters = spellingLetters(text)
+    const letters = spellingLetters(text).map((letter) => letter.toLocaleUpperCase('en-US'))
     if (!letters.length || (options.lang !== 'en-US' && options.lang !== 'en-GB')) {
       throw new Error('没有可播报的英文字母。')
     }
+    if (!globalThis.speechSynthesis) throw new Error('当前系统不支持逐字母发音。')
     const operation = ++this.operation
     this.cancelCurrentPlayback()
     for (const letter of letters) {
       if (operation !== this.operation) return
-      const url = pronunciationAudioUrl(letter, options.lang)
-      if (!url) continue
+      let recordedLetterPlayed = false
       try {
-        // Keep each recorded letter at its native speed; slowing a very short
-        // MP3 creates the same metallic artifacts as sentence time-stretching.
-        await this.playAudio(url, 1)
-      } catch {
-        throw new Error(`字母 ${letter.toLocaleUpperCase('en-US')} 的标准发音加载失败，请检查网络后重试。`)
-      }
+        if (isWindowsDesktop) {
+          const response = await desktopRequest('fetchEnglishAudio', { text: letter, rate: options.rate, spelling: true })
+          if (operation !== this.operation) return
+          if (response.audioDataUrl) {
+            await this.playAudio(response.audioDataUrl, options.rate, 1.6)
+            recordedLetterPlayed = true
+          }
+        } else {
+          const url = fallbackEnglishPassageAudioUrl(letter)
+          if (url && typeof Audio !== 'undefined') {
+            await this.playAudio(url, options.rate)
+            recordedLetterPlayed = true
+          }
+        }
+      } catch { /* 标准字母录音不可用时回退到系统英文声音 */ }
+      if (!recordedLetterPlayed) await this.speakSystemUtterance(letter, options)
+      if (operation !== this.operation) return
+      await new Promise((resolve) => setTimeout(resolve, 90))
     }
   }
   speak(text: string, options: SpeakOptions): Promise<void> {
     if (!globalThis.speechSynthesis) return Promise.reject(new Error('当前浏览器不支持系统语音。'))
     this.operation += 1
     this.cancelCurrentPlayback()
+    return this.speakSystemUtterance(text, options)
+  }
+  private speakSystemUtterance(text: string, options: SpeakOptions): Promise<void> {
     return new Promise((resolve, reject) => {
       const utterance = new SpeechSynthesisUtterance(text)
       utterance.lang = options.lang
@@ -180,18 +211,43 @@ export class WebSpeechTtsProvider implements TtsProvider {
       globalThis.speechSynthesis.speak(utterance)
     })
   }
-  private playAudio(url: string, rate: number): Promise<void> {
+  private playAudio(url: string, rate: number, gain = 1): Promise<void> {
     return new Promise((resolve, reject) => {
       const audio = new Audio(url)
       audio.preload = 'auto'
       audio.playbackRate = Math.max(.5, Math.min(2, rate))
       audio.preservesPitch = true
+      audio.volume = 1
+      let sourceNode: MediaElementAudioSourceNode | null = null
+      let gainNode: GainNode | null = null
+      let compressorNode: DynamicsCompressorNode | null = null
+      if (gain > 1 && url.startsWith('data:') && typeof AudioContext !== 'undefined') {
+        try {
+          this.audioContext ??= new AudioContext()
+          void this.audioContext.resume()
+          sourceNode = this.audioContext.createMediaElementSource(audio)
+          gainNode = this.audioContext.createGain()
+          compressorNode = this.audioContext.createDynamicsCompressor()
+          gainNode.gain.value = gain
+          compressorNode.threshold.value = -10
+          compressorNode.knee.value = 12
+          compressorNode.ratio.value = 4
+          sourceNode.connect(gainNode).connect(compressorNode).connect(this.audioContext.destination)
+        } catch {
+          sourceNode = null
+          gainNode = null
+          compressorNode = null
+        }
+      }
       let settled = false
       const finish = (error?: unknown) => {
         if (settled) return
         settled = true
         audio.onended = null
         audio.onerror = null
+        sourceNode?.disconnect()
+        gainNode?.disconnect()
+        compressorNode?.disconnect()
         if (this.activeAudio?.element === audio) this.activeAudio = null
         if (error) reject(error); else resolve()
       }

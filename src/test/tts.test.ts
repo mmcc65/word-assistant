@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { englishPassageAudioUrl, passageSpeechSpeed, pronunciationAudioUrl, selectVoice, spellingLetters, WebSpeechTtsProvider } from '../providers/tts'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { englishPassageAudioUrl, fallbackEnglishPassageAudioUrl, passageSpeechSpeed, pronunciationAudioUrl, selectVoice, spellingLetters, spellingSpeechText, WebSpeechTtsProvider } from '../providers/tts'
 
 const voice = (name: string, lang: string, isDefault = false) => ({
   name,
@@ -10,6 +10,8 @@ const voice = (name: string, lang: string, isDefault = false) => ({
 }) as SpeechSynthesisVoice
 
 describe('英文语音选择', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
   it('精确匹配用户选择的英美口音', () => {
     const voices = [voice('British voice', 'en-GB'), voice('American voice', 'en-US')]
     expect(selectVoice(voices, { lang: 'en-US', rate: 1 })?.name).toBe('American voice')
@@ -42,12 +44,55 @@ describe('英文语音选择', () => {
     expect(passageSpeechSpeed(.7)).toBe(3)
     expect(passageSpeechSpeed(.9)).toBe(5)
     expect(passageSpeechSpeed(1.1)).toBe(6)
-    expect(passageSpeechSpeed(1.37)).toBe(8)
-    expect(passageSpeechSpeed(1.8)).toBe(9)
+    expect(passageSpeechSpeed(1.37)).toBe(7)
+    expect(passageSpeechSpeed(1.8)).toBe(7)
+    expect(passageSpeechSpeed(2)).toBe(7)
+    expect(fallbackEnglishPassageAudioUrl('C, O, M')).toContain('translate.google.com/translate_tts')
   })
 
   it('拼写会拆成独立字母而不是重新朗读整个单词', () => {
     expect(spellingLetters('c o m p e l l i n g')).toEqual(['c', 'o', 'm', 'p', 'e', 'l', 'l', 'i', 'n', 'g'])
+    expect(spellingSpeechText('c o m p e l l i n g')).toBe('C, O, M, P, E, L, L, I, N, G')
+    expect(englishPassageAudioUrl(spellingSpeechText('issue'), .7)).toContain('I%2C%20S%2C%20S%2C%20U%2C%20E')
+  })
+
+  it('拼写播放会逐个提交大写字母，不会把字母重新合成单词', async () => {
+    const spoken: string[] = []
+    class FakeUtterance {
+      lang = ''
+      rate = 1
+      pitch = 1
+      volume = 1
+      voice: SpeechSynthesisVoice | null = null
+      onend: (() => void) | null = null
+      onerror: ((event: { error: string }) => void) | null = null
+      constructor(readonly text: string) {}
+    }
+    vi.stubGlobal('SpeechSynthesisUtterance', FakeUtterance)
+    vi.stubGlobal('Audio', class {
+      preload = ''
+      playbackRate = 1
+      preservesPitch = true
+      volume = 1
+      currentTime = 0
+      onended: (() => void) | null = null
+      onerror: (() => void) | null = null
+      pause() {}
+      play() { return Promise.reject(new Error('recorded audio unavailable in test')) }
+    })
+    vi.stubGlobal('speechSynthesis', {
+      getVoices: () => [],
+      cancel: () => undefined,
+      pause: () => undefined,
+      resume: () => undefined,
+      speak: (utterance: FakeUtterance) => {
+        spoken.push(utterance.text)
+        setTimeout(() => utterance.onend?.(), 0)
+      },
+    })
+
+    await new WebSpeechTtsProvider().speakSpelling('cat', { lang: 'en-US', rate: 1 })
+    expect(spoken).toEqual(['C', 'A', 'T'])
   })
 
   it('系统未提供 speechSynthesis 时不会在启动或控制播放时崩溃', () => {

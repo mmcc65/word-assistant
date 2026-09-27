@@ -166,16 +166,34 @@ public partial class MainWindow : Window
                 var rate = root.TryGetProperty("rate", out var rateElement) && rateElement.TryGetDouble(out var requestedRate)
                     ? Math.Clamp(requestedRate, 0.5, 2)
                     : 1;
-                var speed = rate <= 0.6 ? 2 : rate <= 0.7 ? 3 : rate <= 0.85 ? 4 : rate <= 1 ? 5 : rate <= 1.1 ? 6 : rate <= 1.25 ? 7 : rate <= 1.5 ? 8 : 9;
-                var url = $"https://fanyi.baidu.com/gettts?lan=en&text={Uri.EscapeDataString(text)}&spd={speed}&source=web";
-                using var response = await AudioClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
-                var bytes = await response.Content.ReadAsByteArrayAsync();
-                if (bytes.Length == 0 || bytes.Length > 1_000_000)
-                    throw new InvalidDataException("英文语音服务返回了无效音频。");
-                var mediaType = response.Content.Headers.ContentType?.MediaType ?? "audio/mpeg";
-                Reply(id, new { audioDataUrl = $"data:{mediaType};base64,{Convert.ToBase64String(bytes)}" });
-                return;
+                var spelling = root.TryGetProperty("spelling", out var spellingElement) && spellingElement.ValueKind == JsonValueKind.True;
+                var speed = rate <= 0.5 ? 1 : rate <= 0.6 ? 2 : rate <= 0.7 ? 3 : rate <= 0.85 ? 4 : rate <= 1 ? 5 : rate <= 1.1 ? 6 : 7;
+                var encodedText = Uri.EscapeDataString(text);
+                var googleUrl = $"https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q={encodedText}";
+                var urls = spelling
+                    ? new[] { googleUrl }
+                    : new[]
+                    {
+                        $"https://fanyi.baidu.com/gettts?lan=en&text={encodedText}&spd={speed}&source=web",
+                        googleUrl,
+                    };
+                foreach (var url in urls)
+                {
+                    try
+                    {
+                        using var response = await AudioClient.GetAsync(url);
+                        if (!response.IsSuccessStatusCode) continue;
+                        var bytes = await response.Content.ReadAsByteArrayAsync();
+                        var mediaType = response.Content.Headers.ContentType?.MediaType ?? "";
+                        if (bytes.Length < 256 || bytes.Length > 1_000_000 ||
+                            !mediaType.StartsWith("audio/", StringComparison.OrdinalIgnoreCase)) continue;
+                        Reply(id, new { audioDataUrl = $"data:{mediaType};base64,{Convert.ToBase64String(bytes)}" });
+                        return;
+                    }
+                    catch (HttpRequestException) { }
+                    catch (TaskCanceledException) { }
+                }
+                throw new InvalidDataException("英文语音服务未返回可用音频。");
             }
 
             if (action == "checkUpdate")

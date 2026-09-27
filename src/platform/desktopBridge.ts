@@ -24,7 +24,7 @@ export const isWindowsDesktop = window.location.hostname === 'app.cet6.local' &&
 
 export function desktopRequest(
   action: 'getCachePath' | 'chooseCachePath' | 'restart' | 'fetchEnglishAudio' | 'checkUpdate',
-  request: { text?: string; rate?: number; manifestUrls?: string[]; userInitiated?: boolean } = {},
+  request: { text?: string; rate?: number; spelling?: boolean; manifestUrls?: string[]; userInitiated?: boolean } = {},
 ): Promise<DesktopResponse> {
   const bridge = window.chrome?.webview
   if (!bridge) return Promise.reject(new Error('当前不是 Windows 桌面版'))
