@@ -35,7 +35,7 @@
 
 | 场景 | 状态 | 第一版结论 |
 |---|---:|---|
-| HarmonyOS HAP 工程 | 🧪 | DevEco Studio 与 SDK 已安装，1.1.4 ArkTS/ArkWeb 工程和离线网页资源已同步；构建配置仍未产出 HAP |
+| HarmonyOS HAP 工程 | 🧪 | 1.1.4 ArkTS/ArkWeb 工程和离线网页资源已同步，能编译出未签名 HAP；尚不能直接安装 |
 | 横屏/竖屏布局 | 🧪 | 宽屏双栏和窄屏底栏代码完成，未真机确认 |
 | 查询、导入、本地保存 | 🧪 | 共享 Web 逻辑与自动测试通过 |
 | Supabase 同步 | ⬜ | 需项目凭据、网络和真机 |
@@ -46,7 +46,7 @@
 
 ## 未满足的外部条件
 
-- 当前 Windows 环境已具备 Android 构建工具以及 DevEco Studio/HarmonyOS SDK，但鸿蒙工程仍需完成 HAP 构建配置与签名。
+- 当前 Windows 环境已具备 Android 构建工具以及 DevEco Studio/HarmonyOS SDK；鸿蒙工程可编译未签名 HAP，仍需设备适配和开发者签名。
 - Huawei Pura 70 Pro 曾完成旧版 APK 侧载；1.1.4 手机版及 HarmonyOS 6 平板均未连接安装验证。
 - 没有 HarmonyOS 开发者签名、Supabase 项目或商业词典/Neural TTS Key。
 - 因此不能声称 HAP/APK 安装、后台音频、系统播控中心、离线音频文件及原生应用内更新已经通过。

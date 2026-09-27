@@ -78,6 +78,10 @@ Windows 桌面版的数据与缓存不会打进更新包。升级程序只替换
 
 在 Releases 下载 `WordAssistant-android-phone-tablet.apk`。该安装包同时适配 Android 手机、Android 平板以及支持 Android 应用的 HarmonyOS 设备。安装后可在“设置 → 检查更新”获取后续版本；系统仍会要求用户确认安装，应用不会静默更新。
 
+### HarmonyOS 6 / NEXT 平板
+
+Releases 中的 `WordAssistant-HarmonyOS6-tablet-unsigned.hap` 仅供开发者检查构建结果，**未签名，不能直接安装**。此平台需要使用 DevEco Studio 配置有效签名，并在目标平板上完成安装与兼容性验证；上面的 Android APK 不能代替 HarmonyOS 6 / NEXT 安装包。
+
 ## 从源码运行
 
 ### 环境要求
