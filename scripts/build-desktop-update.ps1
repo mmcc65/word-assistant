@@ -34,7 +34,7 @@ $manifest = [ordered]@{
   version = $version
   packageUrl = 'WordAssistant-desktop-release.zip'
   sha256 = $hash
-  notes = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('5ou85YaZ5pS55Li66YCQ5a2X5q+N5qCH5YeG5b2V6Z+z77yM5bm25o+Q6auY5a2X5q+N5ZON5bqm77yb5L+u5q2j6auY6K+t6YCf6Z+z6aKR5Yqg6L295aSx6LSl77yb5Yqg5YWl5aSH55So6Iux5paH6K+t6Z+z5rqQ44CC'))
+  notes = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('5L+u5q2j6aaW5qyh6L+b5YWl5pKt5pS+6aG15pi+56S6IDAvMO+8m+e7n+S4gOeItuWtkOaWh+S7tuWkueWNleivjeaVsOmHj+W5tuiHquWKqOWOu+mHje+8m+aSreaUvuadpea6kOaYvuekuuWHhuehruaVsOmHj+OAgg=='))
 } | ConvertTo-Json
 $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [System.IO.File]::WriteAllText((Join-Path $output 'desktop-latest.json'), $manifest, $utf8NoBom)

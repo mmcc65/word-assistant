@@ -1,12 +1,13 @@
 import { BookOpen, Cloud, Import, Layers3, Plus, Play, Star } from 'lucide-react'
 import type { AppStore } from '../state/useAppStore'
 import { SyncButton } from '../components/SyncButton'
+import { collectWordbookWordIds } from '../domain/operations'
 
 export function HomePage({ store, navigate }: { store: AppStore; navigate: (page: string) => void }) {
   const data = store.data!
   const today = new Date().toISOString().slice(0, 10)
   const recent = [...data.wordbooks].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 4)
-  const count = (bookId: string) => data.wordbookItems.filter((item) => item.wordbookId === bookId).length
+  const count = (bookId: string) => collectWordbookWordIds(data, bookId).size
   const position = data.playbackPosition
   const lastBook = data.wordbooks.find((book) => book.id === position.wordbookId)
   return <div className="page home-page">

@@ -13,7 +13,7 @@ $gradleText = Get-Content -LiteralPath $gradleFile -Raw
 $versionCode = [int][regex]::Match($gradleText, 'versionCode\s+(\d+)').Groups[1].Value
 $versionName = [regex]::Match($gradleText, 'versionName\s+"([^"]+)"').Groups[1].Value
 $hash = (Get-FileHash -LiteralPath $apk -Algorithm SHA256).Hash.ToLower()
-$notes = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('5ou85YaZ5pS55Li66YCQ5a2X5q+N5qCH5YeG5b2V6Z+z77yM5L+u5q2j6auY6K+t6YCf6Z+z6aKR5Yqg6L295aSx6LSl77yM5bm25Yqg5YWl5aSH55So6Iux5paH6K+t6Z+z5rqQ44CC'))
+$notes = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('5L+u5q2j6aaW5qyh6L+b5YWl5pKt5pS+6aG15pi+56S6IDAvMO+8m+e7n+S4gOeItuWtkOaWh+S7tuWkueWNleivjeaVsOmHj+W5tuiHquWKqOWOu+mHje+8m+aSreaUvuadpea6kOaYvuekuuWHhuehruaVsOmHj+OAgg=='))
 $manifest = [ordered]@{
   versionCode = $versionCode
   versionName = $versionName

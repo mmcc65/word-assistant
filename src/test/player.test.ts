@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { builtInPresets } from '../domain/defaults'
 import { importRowToEntry } from '../domain/importer'
-import { buildPlaybackQueue, partOfSpeechForSpeech } from '../domain/player'
+import { buildPlaybackQueue, partOfSpeechForSpeech, resolvePlaybackWordbookId } from '../domain/player'
+import { createEmptyData } from '../domain/defaults'
 
 describe('播放队列', () => {
   const word = importRowToEntry({ rowNumber: 1, word: 'issue', partOfSpeech: 'n.', meaning: '问题', example: 'This is an issue.', exampleTranslation: '这是一个问题。', phrase: 'address an issue', phraseTranslation: '处理问题' })
@@ -46,5 +47,12 @@ describe('播放队列', () => {
     expect(buildPlaybackQueue([word], preset)).toHaveLength(3)
     word.meanings[0].senses[0].favorite = true
     expect(buildPlaybackQueue([word], preset).some((item) => item.type === 'partOfSpeechMeaning')).toBe(true)
+  })
+
+  it('启动时不会继续使用已删除的播放文件夹', () => {
+    const data = createEmptyData()
+    data.playbackPosition.wordbookId = 'deleted-book'
+    expect(resolvePlaybackWordbookId(data)).toBe('wb-cet6')
+    expect(resolvePlaybackWordbookId(data, 'wb-high-frequency')).toBe('wb-high-frequency')
   })
 })

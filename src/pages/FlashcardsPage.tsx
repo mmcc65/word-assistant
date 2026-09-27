@@ -2,6 +2,7 @@ import { Brain, ChevronLeft, ChevronRight, Eye, EyeOff, RotateCcw, Shuffle, Volu
 import { useEffect, useMemo, useState } from 'react'
 import { isFlashcardDue, masteryLabel, reviewFlashcard } from '../domain/flashcards'
 import { nowIso } from '../domain/defaults'
+import { collectWordbookWordIds } from '../domain/operations'
 import type { FlashcardRating, WordEntry } from '../domain/types'
 import { ttsProvider } from '../providers/tts'
 import type { AppStore } from '../state/useAppStore'
@@ -13,18 +14,6 @@ function shuffled<T>(items: T[]): T[] {
     ;[result[index], result[target]] = [result[target], result[index]]
   }
   return result
-}
-
-function collectBookIds(data: AppStore['data'], selectedId: string): Set<string> {
-  const ids = new Set<string>([selectedId])
-  let changed = true
-  while (changed) {
-    changed = false
-    data?.wordbooks.forEach((book) => {
-      if (book.parentId && ids.has(book.parentId) && !ids.has(book.id)) { ids.add(book.id); changed = true }
-    })
-  }
-  return ids
 }
 
 export function FlashcardsPage({ store }: { store: AppStore }) {
@@ -42,8 +31,7 @@ export function FlashcardsPage({ store }: { store: AppStore }) {
 
   const sourceWords = useMemo(() => {
     if (sourceId === 'all') return data.words
-    const bookIds = collectBookIds(data, sourceId)
-    const wordIds = new Set(data.wordbookItems.filter((item) => bookIds.has(item.wordbookId)).map((item) => item.wordId))
+    const wordIds = collectWordbookWordIds(data, sourceId)
     return data.words.filter((word) => wordIds.has(word.id))
   }, [data.words, data.wordbooks, data.wordbookItems, sourceId])
   const sourceKey = sourceWords.map((word) => word.id).join('|')
@@ -136,7 +124,7 @@ export function FlashcardsPage({ store }: { store: AppStore }) {
     </div>
 
     <section className="flashcard-toolbar card">
-      <label>卡片来源<select value={sourceId} onChange={(event) => setSourceId(event.target.value)}><option value="all">全部生词（{data.words.length}）</option>{data.wordbooks.map((book) => <option key={book.id} value={book.id}>{book.name}</option>)}</select></label>
+      <label>卡片来源<select value={sourceId} onChange={(event) => setSourceId(event.target.value)}><option value="all">全部生词（{data.words.length}）</option>{data.wordbooks.map((book) => <option key={book.id} value={book.id}>{book.name}（{collectWordbookWordIds(data, book.id).size}）</option>)}</select></label>
       <label className="flashcard-check"><input type="checkbox" checked={dueOnly} onChange={(event) => setDueOnly(event.target.checked)} />只看待复习卡片</label>
       <label className="flashcard-check"><input type="checkbox" checked={randomOrder} onChange={(event) => setRandomOrder(event.target.checked)} /><Shuffle size={16} />随机顺序</label>
       <label className="flashcard-check"><input type="checkbox" checked={autoSpeak} onChange={(event) => setAutoSpeak(event.target.checked)} /><Volume2 size={16} />自动发音</label>

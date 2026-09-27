@@ -1,8 +1,8 @@
 import { ChevronLeft, ChevronRight, ListMusic, Pause, Pencil, Play, Plus, Repeat2, Shuffle, Square } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { buildPlaybackQueue, shuffleWords } from '../domain/player'
+import { buildPlaybackQueue, resolvePlaybackWordbookId, shuffleWords } from '../domain/player'
 import { newId } from '../domain/defaults'
-import { collectDescendantWordbookIds } from '../domain/operations'
+import { collectWordbookWordIds } from '../domain/operations'
 import type { PlaybackContentType, PlaybackPreset, QueueItem } from '../domain/types'
 import { ttsProvider } from '../providers/tts'
 import type { AppStore } from '../state/useAppStore'
@@ -12,7 +12,7 @@ const gaps = [0, .5, 1, 2, 3, 5]
 
 export function PlayerPage({ store, initialBookId }: { store: AppStore; initialBookId?: string }) {
   const data = store.data!
-  const [bookId, setBookId] = useState(initialBookId && data.wordbooks.some((book) => book.id === initialBookId) ? initialBookId : data.playbackPosition.wordbookId ?? data.wordbooks[0]?.id ?? '')
+  const [bookId, setBookId] = useState(() => resolvePlaybackWordbookId(data, initialBookId))
   const [presetId, setPresetId] = useState(data.settings.activePresetId)
   const [mode, setMode] = useState<'sequential' | 'random'>('sequential')
   const [loop, setLoop] = useState(false)
@@ -22,18 +22,29 @@ export function PlayerPage({ store, initialBookId }: { store: AppStore; initialB
   const [error, setError] = useState('')
   const stopped = useRef(false)
   const preset = data.presets.find((item) => item.id === presetId) ?? data.presets[0]
+  const bookCounts = useMemo(() => new Map(data.wordbooks.map((book) => [book.id, collectWordbookWordIds(data, book.id).size])), [data.wordbooks, data.wordbookItems, data.words])
   const words = useMemo(() => {
-    const bookIds = collectDescendantWordbookIds(data, bookId)
-    const ids = new Set(data.wordbookItems.filter((item) => bookIds.has(item.wordbookId)).map((item) => item.wordId))
+    const ids = collectWordbookWordIds(data, bookId)
     const values = data.words.filter((word) => ids.has(word.id))
     return mode === 'random' ? shuffleWords(values) : values
-  }, [bookId, data.wordbookItems, data.words, mode])
+  }, [bookId, data.wordbooks, data.wordbookItems, data.words, mode])
   const queue = useMemo(() => preset ? buildPlaybackQueue(words, preset) : [], [words, preset])
   const current: QueueItem | undefined = queue[queueIndex]
   const currentWord = data.words.find((word) => word.id === current?.wordId)
   const wordPosition = currentWord ? words.findIndex((word) => word.id === currentWord.id) + 1 : 0
 
   useEffect(() => () => { stopped.current = true; ttsProvider.stop() }, [])
+  useEffect(() => {
+    if (data.wordbooks.some((book) => book.id === bookId)) return
+    const fallbackId = resolvePlaybackWordbookId(data)
+    stopped.current = true
+    ttsProvider.stop()
+    setBookId(fallbackId)
+    setQueueIndex(0)
+    setPlaying(false)
+    setPaused(false)
+    setError('')
+  }, [bookId, data.wordbooks, data])
 
   const playFrom = async (start: number) => {
     if (!queue.length) return
@@ -62,6 +73,16 @@ export function PlayerPage({ store, initialBookId }: { store: AppStore; initialB
     setPlaying(false); setPaused(false)
   }
   const stop = () => { stopped.current = true; ttsProvider.stop(); setPlaying(false); setPaused(false) }
+  const selectBook = (nextBookId: string) => {
+    stop()
+    setBookId(nextBookId)
+    setQueueIndex(0)
+    setError('')
+    store.commit((current) => ({
+      ...current,
+      playbackPosition: { ...current.playbackPosition, wordbookId: nextBookId, wordIndex: 0, total: collectWordbookWordIds(current, nextBookId).size, updatedAt: new Date().toISOString() },
+    }))
+  }
   const togglePause = () => {
     if (!playing) { void playFrom(queueIndex); return }
     if (paused) { ttsProvider.resume(); setPaused(false) } else { ttsProvider.pause(); setPaused(true) }
@@ -120,7 +141,7 @@ export function PlayerPage({ store, initialBookId }: { store: AppStore; initialB
     <div className="page-title"><div><p className="eyebrow">连续语音复习</p><h1>播放</h1><p>每一种内容都可以独立控制。</p></div></div>
     <div className="player-layout">
       <section className="now-playing card">
-        <div className="player-top"><label>播放来源<select value={bookId} onChange={(event) => { stop(); setBookId(event.target.value); setQueueIndex(0) }}>{data.wordbooks.map((book) => <option key={book.id} value={book.id}>{book.name}</option>)}</select></label><span>{wordPosition || 0} / {words.length}</span></div>
+        <div className="player-top"><label>播放来源<select value={bookId} onChange={(event) => selectBook(event.target.value)}>{data.wordbooks.map((book) => <option key={book.id} value={book.id}>{book.name}（{bookCounts.get(book.id) ?? 0}）</option>)}</select></label><span>{wordPosition || 0} / {words.length}</span></div>
         <div className="record"><div className={playing && !paused ? 'record-disc spinning' : 'record-disc'}><ListMusic /></div></div>
         <div className="current-copy"><p>{current ? labels[current.type] : '准备播放'}</p><h2>{currentWord?.word ?? '选择含有单词的生词本'}</h2><div className="current-text">{current?.text ?? `队列共 ${queue.length} 个播报片段`}</div></div>
         <div className="seek"><i style={{ width: `${queue.length ? (queueIndex + 1) / queue.length * 100 : 0}%` }} /></div>

@@ -1,4 +1,9 @@
-import type { PlaybackPreset, QueueItem, Sense, WordEntry } from './types'
+import type { AppData, PlaybackPreset, QueueItem, Sense, WordEntry } from './types'
+
+export function resolvePlaybackWordbookId(data: AppData, requestedId?: string | null): string {
+  const candidates = [requestedId, data.playbackPosition.wordbookId, 'wb-cet6', data.wordbooks[0]?.id]
+  return candidates.find((candidate): candidate is string => Boolean(candidate && data.wordbooks.some((book) => book.id === candidate))) ?? ''
+}
 
 function repeatItems(
   word: WordEntry,

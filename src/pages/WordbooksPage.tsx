@@ -4,6 +4,7 @@ import { WordDetail } from '../components/WordDetail'
 import { paginate, visiblePageNumbers } from '../domain/pagination'
 import { ttsProvider } from '../providers/tts'
 import type { WordEntry } from '../domain/types'
+import { collectDescendantWordbookIds, collectWordbookWordIds } from '../domain/operations'
 import type { AppStore } from '../state/useAppStore'
 
 export function WordbooksPage({ store, initialId, navigate }: { store: AppStore; initialId?: string; navigate: (page: string) => void }) {
@@ -15,19 +16,15 @@ export function WordbooksPage({ store, initialId, navigate }: { store: AppStore;
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const selected = data.wordbooks.find((book) => book.id === selectedId)
-  const ids = useMemo(() => {
-    const result = new Set([selectedId]); let changed = true
-    while (changed) { changed = false; data.wordbooks.forEach((book) => { if (book.parentId && result.has(book.parentId) && !result.has(book.id)) { result.add(book.id); changed = true } }) }
-    return result
-  }, [data.wordbooks, selectedId])
-  const wordIds = new Set(data.wordbookItems.filter((item) => ids.has(item.wordbookId)).map((item) => item.wordId))
+  const ids = useMemo(() => collectDescendantWordbookIds(data, selectedId), [data.wordbooks, selectedId])
+  const wordIds = collectWordbookWordIds(data, selectedId)
   const words = data.words.filter((word) => wordIds.has(word.id) && (!query || word.word.includes(query.toLocaleLowerCase()) || word.meanings.some((group) => group.senses.some((sense) => sense.chinese.includes(query)))))
   const pagination = paginate(words, page, pageSize)
   const pageNumbers = visiblePageNumbers(pagination.currentPage, pagination.totalPages)
   useEffect(() => { setPage(1); setExpandedWord(null) }, [selectedId, query, pageSize])
   useEffect(() => { if (page !== pagination.currentPage) setPage(pagination.currentPage) }, [page, pagination.currentPage])
   const goToPage = (nextPage: number) => { setPage(nextPage); setExpandedWord(null) }
-  const count = (bookId: string) => data.wordbookItems.filter((item) => item.wordbookId === bookId).length
+  const count = (bookId: string) => collectWordbookWordIds(data, bookId).size
   const addFolder = () => { const name = window.prompt('新文件夹名称'); if (name?.trim()) store.createWordbook(name.trim(), selectedId || null) }
   const rename = () => { if (!selected) return; const name = window.prompt('重命名生词本', selected.name); if (name?.trim()) store.updateWordbook(selected.id, { name: name.trim() }) }
   const moveFolder = () => {

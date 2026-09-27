@@ -1,6 +1,8 @@
 import { newId, nowIso } from './defaults'
 import type { AppData } from './types'
 
+export const LIBRARY_ROOT_WORDBOOK_ID = 'wb-cet6'
+
 export function collectDescendantWordbookIds(data: AppData, rootId: string): Set<string> {
   const result = new Set([rootId])
   let changed = true
@@ -14,6 +16,18 @@ export function collectDescendantWordbookIds(data: AppData, rootId: string): Set
     }
   }
   return result
+}
+
+export function collectWordbookWordIds(data: AppData, rootId: string): Set<string> {
+  // “我的生词”是整个私人词库的入口。历史版本中可能存在尚未关联
+  // 到具体子文件夹的词条，它们也必须在这里可见、可播放。
+  if (rootId === LIBRARY_ROOT_WORDBOOK_ID) return new Set(data.words.map((word) => word.id))
+
+  const bookIds = collectDescendantWordbookIds(data, rootId)
+  const existingWordIds = new Set(data.words.map((word) => word.id))
+  return new Set(data.wordbookItems
+    .filter((item) => bookIds.has(item.wordbookId) && existingWordIds.has(item.wordId))
+    .map((item) => item.wordId))
 }
 
 export function linkWordToBook(data: AppData, wordId: string, wordbookId: string): AppData {
